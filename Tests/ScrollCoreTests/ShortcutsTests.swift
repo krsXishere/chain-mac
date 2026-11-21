@@ -21,6 +21,9 @@ final class ShortcutsTests: XCTestCase {
                           KeyCombo(modifiers: KeyCombo.base, keyCode: KeyCombo.Code.l)],
             .moveLeft: [KeyCombo(modifiers: KeyCombo.base | KeyCombo.shift, keyCode: KeyCombo.Code.leftArrow),
                         KeyCombo(modifiers: KeyCombo.base | KeyCombo.shift, keyCode: KeyCombo.Code.h)],
+            .arrange1: [KeyCombo(modifiers: KeyCombo.option | KeyCombo.command, keyCode: KeyCombo.Code.one)],
+            .arrange2: [KeyCombo(modifiers: KeyCombo.option | KeyCombo.command, keyCode: KeyCombo.Code.two)],
+            .arrange3: [KeyCombo(modifiers: KeyCombo.option | KeyCombo.command, keyCode: KeyCombo.Code.three)],
             .cycleWidth: [KeyCombo(modifiers: KeyCombo.base, keyCode: KeyCombo.Code.r)],
             .fullWidth: [KeyCombo(modifiers: KeyCombo.base, keyCode: KeyCombo.Code.f)],
             .center: [KeyCombo(modifiers: KeyCombo.base, keyCode: KeyCombo.Code.c)],
@@ -83,6 +86,10 @@ final class ShortcutsTests: XCTestCase {
     func testComboDescribesItselfWithSymbolsInAppleOrder() {
         let combo = KeyCombo(modifiers: KeyCombo.base | KeyCombo.shift, keyCode: KeyCombo.Code.p)
         XCTAssertEqual(combo.description, "⌃⌥⇧P")
+    }
+
+    func testArrangeCombosDescribeThemselves() {
+        XCTAssertEqual(KeyBindings.defaults.combos[.arrange2]?.first?.description, "⌥⌘2")
     }
 
     // MARK: - Presets

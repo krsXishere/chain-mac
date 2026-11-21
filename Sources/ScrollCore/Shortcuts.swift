@@ -40,6 +40,7 @@ public struct KeyCombo: Hashable, Codable, Sendable, CustomStringConvertible {
         public static let downArrow: UInt16 = 125, upArrow: UInt16 = 126
         public static let r: UInt16 = 15, f: UInt16 = 3, c: UInt16 = 8, p: UInt16 = 35
         public static let n: UInt16 = 45, q: UInt16 = 12, t: UInt16 = 17
+        public static let one: UInt16 = 18, two: UInt16 = 19, three: UInt16 = 20
         public static let equal: UInt16 = 24, minus: UInt16 = 27, zero: UInt16 = 29
         public static let leftBracket: UInt16 = 33, rightBracket: UInt16 = 30
     }
@@ -64,6 +65,9 @@ public struct KeyCombo: Hashable, Codable, Sendable, CustomStringConvertible {
         case Code.equal: return "="
         case Code.minus: return "-"
         case Code.zero: return "0"
+        case Code.one: return "1"
+        case Code.two: return "2"
+        case Code.three: return "3"
         case Code.leftBracket: return "["
         case Code.rightBracket: return "]"
         default: return "key\(keyCode)"
@@ -75,6 +79,7 @@ public enum StripAction: String, Codable, Sendable, CaseIterable {
     case focusLeft, focusRight, focusUp, focusDown
     case focusFirst, focusLast
     case moveLeft, moveRight, moveUp, moveDown
+    case arrange1, arrange2, arrange3
     case cycleWidth, fullWidth, center
     case wider, narrower, taller, shorter, equalHeights
     case stackLeft, stackRight, unstackRight, unstackLeft
@@ -87,7 +92,8 @@ public enum StripAction: String, Codable, Sendable, CaseIterable {
         switch self {
         case .focusLeft, .focusRight, .focusUp, .focusDown,
              .focusFirst, .focusLast,
-             .moveLeft, .moveRight, .moveUp, .moveDown:
+             .moveLeft, .moveRight, .moveUp, .moveDown,
+             .arrange1, .arrange2, .arrange3:
             return true
         default:
             return false
@@ -102,6 +108,7 @@ public extension StripAction {
         let base = KeyCombo.base
         let shift = base | KeyCombo.shift
         let cmd = base | KeyCombo.command
+        let optionCmd = KeyCombo.option | KeyCombo.command
 
         switch self {
         case .focusLeft:
@@ -132,6 +139,14 @@ public extension StripAction {
         case .moveDown:
             return [KeyCombo(modifiers: shift, keyCode: KeyCombo.Code.downArrow),
                     KeyCombo(modifiers: shift, keyCode: KeyCombo.Code.j)]
+        // ⌥⌘1/2/3 pair with ⌘1/2/3 (focusFirst/focusLast) the way Shift pairs
+        // with the bare arrows: same digit, extra modifier, moves instead of looks.
+        case .arrange1:
+            return [KeyCombo(modifiers: optionCmd, keyCode: KeyCombo.Code.one)]
+        case .arrange2:
+            return [KeyCombo(modifiers: optionCmd, keyCode: KeyCombo.Code.two)]
+        case .arrange3:
+            return [KeyCombo(modifiers: optionCmd, keyCode: KeyCombo.Code.three)]
         case .cycleWidth:
             return [KeyCombo(modifiers: base, keyCode: KeyCombo.Code.r)]
         case .fullWidth:

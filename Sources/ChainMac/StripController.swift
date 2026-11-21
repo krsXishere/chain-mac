@@ -159,6 +159,9 @@ final class StripController {
         case .moveRight: try? state.moveFocused(.right)
         case .moveUp: try? state.focusNext(.left)
         case .moveDown: try? state.focusNext(.right)
+        case .arrange1: try? state.focus(index: min(0, columns.count - 1))
+        case .arrange2: try? state.focus(index: min(1, columns.count - 1))
+        case .arrange3: try? state.focus(index: min(2, columns.count - 1))
         case .cycleWidth:
             Presets.cycle(&state, presets: presets, fits: fits)
         case .fullWidth:
