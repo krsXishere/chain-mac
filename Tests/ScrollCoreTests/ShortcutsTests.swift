@@ -20,7 +20,11 @@ final class ShortcutsTests: XCTestCase {
             .focusRight: [KeyCombo(modifiers: KeyCombo.base, keyCode: KeyCombo.Code.rightArrow),
                           KeyCombo(modifiers: KeyCombo.base, keyCode: KeyCombo.Code.l)],
             .moveLeft: [KeyCombo(modifiers: KeyCombo.base | KeyCombo.shift, keyCode: KeyCombo.Code.leftArrow),
-                        KeyCombo(modifiers: KeyCombo.base | KeyCombo.shift, keyCode: KeyCombo.Code.h)],
+                        KeyCombo(modifiers: KeyCombo.base | KeyCombo.shift, keyCode: KeyCombo.Code.h),
+                        KeyCombo(modifiers: KeyCombo.option | KeyCombo.command, keyCode: KeyCombo.Code.leftArrow)],
+            .moveRight: [KeyCombo(modifiers: KeyCombo.base | KeyCombo.shift, keyCode: KeyCombo.Code.rightArrow),
+                         KeyCombo(modifiers: KeyCombo.base | KeyCombo.shift, keyCode: KeyCombo.Code.l),
+                         KeyCombo(modifiers: KeyCombo.option | KeyCombo.command, keyCode: KeyCombo.Code.rightArrow)],
             .arrange1: [KeyCombo(modifiers: KeyCombo.option | KeyCombo.command, keyCode: KeyCombo.Code.one)],
             .arrange2: [KeyCombo(modifiers: KeyCombo.option | KeyCombo.command, keyCode: KeyCombo.Code.two)],
             .arrange3: [KeyCombo(modifiers: KeyCombo.option | KeyCombo.command, keyCode: KeyCombo.Code.three)],
@@ -90,6 +94,7 @@ final class ShortcutsTests: XCTestCase {
 
     func testArrangeCombosDescribeThemselves() {
         XCTAssertEqual(KeyBindings.defaults.combos[.arrange2]?.first?.description, "⌥⌘2")
+        XCTAssertEqual(KeyBindings.defaults.combos[.moveRight]?.last?.description, "⌥⌘→")
     }
 
     // MARK: - Presets

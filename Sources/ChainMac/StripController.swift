@@ -155,8 +155,8 @@ final class StripController {
         case .focusDown: try? state.focusNext(.right)
         case .focusFirst: try? state.focus(index: 0)
         case .focusLast: try? state.focus(index: max(0, columns.count - 1))
-        case .moveLeft: try? state.moveFocused(.left)
-        case .moveRight: try? state.moveFocused(.right)
+        case .moveLeft: reorderFocused(.left)
+        case .moveRight: reorderFocused(.right)
         case .moveUp: try? state.focusNext(.left)
         case .moveDown: try? state.focusNext(.right)
         case .arrange1: try? state.focus(index: min(0, columns.count - 1))
@@ -208,6 +208,17 @@ final class StripController {
         }
         publishMinimap()
         onChange?()
+    }
+
+    /// `state.moveFocused` swaps the column state and moves focus to the new slot.
+    /// The window handles live here, so they have to be swapped with it or the
+    /// apps would stay put while only widths and focus changed places.
+    private func reorderFocused(_ direction: Direction) {
+        let from = state.focused
+        guard (try? state.moveFocused(direction)) != nil else { return }
+        let to = state.focused
+        guard from != to, columns.indices.contains(from), columns.indices.contains(to) else { return }
+        columns.swapAt(from, to)
     }
 
     private func activateFocused() {

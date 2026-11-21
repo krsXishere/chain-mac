@@ -129,10 +129,12 @@ public extension StripAction {
             return [KeyCombo(modifiers: cmd, keyCode: KeyCombo.Code.rightArrow)]
         case .moveLeft:
             return [KeyCombo(modifiers: shift, keyCode: KeyCombo.Code.leftArrow),
-                    KeyCombo(modifiers: shift, keyCode: KeyCombo.Code.h)]
+                    KeyCombo(modifiers: shift, keyCode: KeyCombo.Code.h),
+                    KeyCombo(modifiers: optionCmd, keyCode: KeyCombo.Code.leftArrow)]
         case .moveRight:
             return [KeyCombo(modifiers: shift, keyCode: KeyCombo.Code.rightArrow),
-                    KeyCombo(modifiers: shift, keyCode: KeyCombo.Code.l)]
+                    KeyCombo(modifiers: shift, keyCode: KeyCombo.Code.l),
+                    KeyCombo(modifiers: optionCmd, keyCode: KeyCombo.Code.rightArrow)]
         case .moveUp:
             return [KeyCombo(modifiers: shift, keyCode: KeyCombo.Code.upArrow),
                     KeyCombo(modifiers: shift, keyCode: KeyCombo.Code.k)]
