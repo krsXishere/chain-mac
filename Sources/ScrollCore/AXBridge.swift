@@ -93,6 +93,18 @@ public enum AXBridge {
         return Array(handles.prefix(limit))
     }
 
+    /// Every tiled window of every strip app, on every Space. `tiledWindows`
+    /// stops at the active Space on purpose; this is for putting windows back when
+    /// the strip goes away, which has to reach the other Spaces as well.
+    public static func allTiledWindows(limit: Int = 256) -> [AXWindowHandle] {
+        var handles: [AXWindowHandle] = []
+        for app in NSWorkspace.shared.runningApplications where isStripApp(app) {
+            guard handles.count < limit else { break }
+            handles.append(contentsOf: windows(of: app, limit: limit - handles.count))
+        }
+        return handles
+    }
+
     /// Window numbers the window server currently has on screen. Spaces it is not
     /// showing are absent, which is exactly the filter the strip needs.
     static func onScreenWindowIDs() -> Set<CGWindowID> {

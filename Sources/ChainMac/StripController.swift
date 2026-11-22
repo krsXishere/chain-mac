@@ -19,6 +19,10 @@ final class StripController {
         return rows[0]
     }
 
+    /// Last known width and order of every window on every Space. Nil when the
+    /// database cannot be opened: the strip then simply forgets between runs.
+    private let store = StateStore.openDefault()
+
     var windowCount: Int { columns.count }
     private var presets = Presets.defaultWidths
     var gaps = Gaps()
@@ -71,7 +75,17 @@ final class StripController {
     /// minimap. Nil until the UI wires one up.
     var onMinimap: (([CGFloat], Int) -> Void)?
 
+    /// Called with the focused window's frame in AX coordinates and the visible
+    /// canvas, or nil when there is nothing to outline.
+    var onFocusFrame: ((CGRect?, CGRect) -> Void)?
+
+    private func publishBorder() {
+        guard let onFocusFrame else { return }
+        onFocusFrame(window(at: state.focused)?.currentFrame(), canvas)
+    }
+
     private func publishMinimap() {
+        publishBorder()
         guard let onMinimap, !state.columns.isEmpty else { return }
         onMinimap(state.columns.map { $0.widthRatio }, state.focused)
     }
@@ -82,7 +96,9 @@ final class StripController {
     /// behaviour the strip exists to avoid.
     @discardableResult
     func refresh() -> Int {
+        canvas = Self.canvas(for: NSScreen.main)
         adopt(AXBridge.tiledWindows(), widths: [:], fallbackRatio: state.columns.first?.widthRatio)
+        persist()
         layout(animated: false)
         publishMinimap()
         onChange?()
@@ -99,14 +115,25 @@ final class StripController {
         widths: [String: CGFloat],
         fallbackRatio: CGFloat?
     ) {
-        columns = found.map { [$0] }
+        // The database remembers windows from every Space, including the ones this
+        // rebuild does not see, so a window that left and came back keeps both its
+        // width and its place in the order.
+        let saved = store?.load() ?? [:]
+        let ordered = found.enumerated().sorted { a, b in
+            let pa = saved[Self.widthKey(a.element)]?.position ?? Int.max
+            let pb = saved[Self.widthKey(b.element)]?.position ?? Int.max
+            return pa != pb ? pa < pb : a.offset < b.offset
+        }.map(\.element)
+        columns = ordered.map { [$0] }
 
+        let usable = max(1, canvas.width - gaps.left - gaps.right)
         let fallback = fallbackRatio ?? (presets.count > 2 ? presets[2] : 0.5)
         state.columns = columns.map { rows in
             let key = rows.first.map { Self.widthKey($0) } ?? ""
+            let restored = saved[key].map { min(1, max(0.1, CGFloat($0.width) / usable)) }
             return ColumnState(
                 windowIDs: rows.map { $0.windowID },
-                widthRatio: widths[key] ?? fallback
+                widthRatio: widths[key] ?? restored ?? fallback
             )
         }
         state.pinnedLeft = []
@@ -118,7 +145,56 @@ final class StripController {
 
     /// Widths belong to a window, not to a position, so they survive a rebuild.
     private static func widthKey(_ window: AXWindowHandle) -> String {
-        "\(window.pid)\(window.windowID)"
+        let bundle = NSRunningApplication(processIdentifier: window.pid)?.bundleIdentifier
+        return "\(bundle ?? "pid\(window.pid)")#\(window.windowID)"
+    }
+
+    /// Writes the strip's widths and order to the database. Only rows that changed
+    /// hit the disk, so calling this after every action costs nothing when the
+    /// action was a plain focus move.
+    private func persist() {
+        guard let store, canvas.width > 0 else { return }
+        let rows = columns.enumerated().compactMap { index, windows -> SavedWindow? in
+            guard let window = windows.first, state.columns.indices.contains(index) else { return nil }
+            let usable = max(0, canvas.width - gaps.left - gaps.right)
+            return SavedWindow(
+                key: Self.widthKey(window),
+                bundleID: NSRunningApplication(processIdentifier: window.pid)?.bundleIdentifier ?? "",
+                title: window.title,
+                windowID: window.windowID,
+                position: index,
+                width: Double((usable * state.columns[index].widthRatio).rounded())
+            )
+        }
+        store.save(rows)
+    }
+
+    /// Puts every window back inside the screen before the strip goes away. The
+    /// strip parks columns at the rim with only a sliver showing, and nothing else
+    /// would ever bring them back. Covers every Space, not just the active one.
+    func releaseWindows() {
+        persist()
+        stopSliding()
+        let area = Self.canvas(for: NSScreen.main)
+        var moved = 0
+        for window in AXBridge.allTiledWindows() {
+            guard let frame = window.currentFrame() else { continue }
+            let size = CGSize(
+                width: min(frame.width, area.width),
+                height: min(frame.height, area.height)
+            )
+            let origin = CGPoint(
+                x: min(max(frame.minX, area.minX), area.maxX - size.width),
+                y: min(max(frame.minY, area.minY), area.maxY - size.height)
+            )
+            guard size != frame.size || origin != frame.origin else { continue }
+            // Shrink first: a window wider than the screen cannot be positioned
+            // inside it.
+            if size != frame.size { _ = window.setSize(size) }
+            _ = window.setPosition(origin)
+            moved += 1
+        }
+        note("release: moved \(moved) windows back on screen")
     }
 
     /// A Space switch changes which windows exist without changing the strip, so
@@ -139,6 +215,7 @@ final class StripController {
         }
         canvas = Self.canvas(for: NSScreen.main)
         adopt(found, widths: widths, fallbackRatio: state.columns.first?.widthRatio)
+        persist()
         overflow = [:]
         layout(animated: false)
         publishMinimap()
@@ -195,6 +272,7 @@ final class StripController {
             span: canvas.width - gaps.left - gaps.right,
             gapPerColumn: gaps.right
         )
+        persist()
         // Anchor is the only thing that decides whether the strip pages, so print
         // it on every action: a stuck strip is otherwise indistinguishable from a
         // correct one in the log.
@@ -467,6 +545,7 @@ final class StripController {
             frame.append("\(index):\(current.minX)>w\(wanted)/g\(after)/e\(err.rawValue)")
         }
         slideFrames += 1
+        publishBorder()
         // The first frame and every 20th after it: enough to see whether the app
         // accepts the write, without filling the file at 120Hz.
         if slideFrames <= 3 || slideFrames % 20 == 0 {

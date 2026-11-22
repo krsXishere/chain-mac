@@ -12,6 +12,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let bindings = KeyBindings.defaults
     private var layoutFailures: [StripAction: OSStatus] = [:]
     private var animateItem: NSMenuItem?
+    private var borderItem: NSMenuItem?
+    private let border = ActiveBorder()
+    private var signalSources: [DispatchSourceSignal] = []
+
+    @objc private func toggleBorder() {
+        border.isEnabled.toggle()
+        borderItem?.state = border.isEnabled ? .on : .off
+    }
 
     @objc private func toggleAnimation() {
         controller.isAnimated.toggle()
@@ -41,6 +49,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         animate.state = controller.isAnimated ? .on : .off
         animateItem = animate
         menu.addItem(animate)
+        let borderToggle = NSMenuItem(title: "Active window border", action: #selector(toggleBorder), keyEquivalent: "")
+        borderToggle.state = border.isEnabled ? .on : .off
+        borderItem = borderToggle
+        menu.addItem(borderToggle)
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Grant Accessibility", action: #selector(grantAccess), keyEquivalent: ""))
         menu.addItem(.separator())
@@ -53,8 +65,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             minimap.show(ratios: ratios, focused: focused)
         }
 
+        controller.onFocusFrame = { [weak self] frame, canvas in
+            self?.border.update(axFrame: frame, clippedTo: canvas)
+        }
+
         if AXBridge.isTrusted() {
             startHotkeys()
+            // Restores the saved widths and order right away instead of waiting
+            // for the first app switch.
+            controller.syncToCurrentSpace()
+        }
+
+        // kill and logout send SIGTERM; without this the process would die with the
+        // windows still parked at the screen edge.
+        for sig in [SIGTERM, SIGINT, SIGHUP] {
+            signal(sig, SIG_IGN)
+            let source = DispatchSource.makeSignalSource(signal: sig, queue: .main)
+            source.setEventHandler { NSApplication.shared.terminate(nil) }
+            source.resume()
+            signalSources.append(source)
         }
 
         NSWorkspace.shared.notificationCenter.addObserver(
@@ -63,6 +92,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             name: NSWorkspace.didActivateApplicationNotification,
             object: nil
         )
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        controller.releaseWindows()
     }
 
     @objc private func appActivated() {
